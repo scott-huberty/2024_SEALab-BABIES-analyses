@@ -1,0 +1,14 @@
+csv/*
+!csv/.gitkeep
+
+bx/*
+!bx/.gitkeep
+
+precomputed/*
+prequal_reprocessing/*
+recon-all/*
+recona-all_final/*
+trash/*
+work/*
+
+.DS_Store
