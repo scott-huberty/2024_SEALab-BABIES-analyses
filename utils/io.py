@@ -28,7 +28,7 @@ def get_gestational_age_df():
         "1mo_scan_age_wks": "newborn_scan_age_weeks",
         "6mo_scan_age_wks": "sixmonth_scan_age_weeks",
     }
-    df_ages = df_ages.rename(columns=new_names)
+    df_ages = df_ages.rename(columns=new_names).set_index("study_id")
     return df_ages
 
 
@@ -84,11 +84,16 @@ def get_aparc_long_format(fname):
     fname : str | pathlib.Path
         The path to the lh.aparc.stats or rh.aparc.stats file.
         For example ``aparc_newborn_lh.csv`` or ``aparc_newborn_rh.csv``.
+        "lh" or "rh" must be in the filename.
 
     Returns
     -------
     pd.DataFrame
         A long format DataFrame containing the data from either hemisphere.
+        The DataFrame will have the following columns: ``StructName``, ``metric``,
+        and ``value``, where each row of ``metric`` corresponds to one of:
+        ``NumVert``, ``SurfArea``, ``GrayVol``, ``ThickAvg``, ``ThickStd``,
+        ``MeanCurv``, ``GausCurv``, ``FoldInd``, ``CurvInd``).
 
     Notes
     -----
@@ -96,30 +101,43 @@ def get_aparc_long_format(fname):
     ``aparc_{newborn, sixmonth}_{lh, rh}.csv`` files that typically reside in the
     ``csv`` directory of this project. If you don't have these files, you can generate
     them by running the scripts/get_freesurfer_stats.py script, but note that you need
-    to be run this script on a computer that is mounted to the Lab server.
+    to be run this script on a computer that is mounted to the Lab server. These files
+    should have the following columns: ``StructName``, ``NumVert``, ``SurfArea``,
+    ``GrayVol``, ``ThickAvg``, ``ThickStd``, ``MeanCurv``, ``GausCurv``, ``FoldInd``,
+    ``CurvInd``.
 
     Examples
     --------
     >>> fname = "aparc_newborn_lh.csv"
     >>> df = get_aparc_long_format(fname)
     """
+    assert "lh" in fname.stem or "rh" in fname.stem
 
-    df = pd.read_csv(fname)
-    return df.melt(
-        id_vars=["study_id", "StructName"],
+    df = pd.read_csv(fname).set_index("study_id")
+    metrics = [col for col in df.columns if col != "StructName"]
+    n_metrics = len(metrics)
+    assert n_metrics == 9
+    assert "GrayVol" in metrics
+    df_long = df.melt(
+        id_vars=["StructName"],
         var_name="metric",
+        ignore_index=False,
     )
+    assert len(df_long) == len(df) * n_metrics
+    return df_long
 
 
-def get_aparc_all_hemisphere(fname_lh, fname_rh):
+def get_aparc_all_hemisphere(*, fname_lh, fname_rh):
     """Read the csv file containing each subjects Freesurfer {lh,rh}.aparc.stats data.
 
     Parameters
     ----------
     fname_lh : str | pathlib.Path
         The path to the lh.aparc.stats file. For example ``aparc_newborn_lh.csv``.
+        "lh" must be in the filename.
     fname_rh : str | pathlib.Path
         The path to the rh.aparc.stats file. For example ``aparc_newborn_rh.csv``.
+        "rh" must be in the filename.
 
     Returns
     -------
@@ -140,6 +158,8 @@ def get_aparc_all_hemisphere(fname_lh, fname_rh):
     >>> fname_rh = "aparc_newborn_rh.csv"
     >>> df_hemis = get_aparc_all_hemisphere(fname_lh, fname_rh)
     """
+    assert "lh" in fname_lh.stem
+    assert "rh" in fname_rh.stem
     df_lh = get_aparc_long_format(fname_lh)
     df_lh["hemisphere"] = "lh"
     df_lh["StructName"] = df_lh["StructName"].str.replace("lh-", "")
@@ -147,4 +167,5 @@ def get_aparc_all_hemisphere(fname_lh, fname_rh):
     df_rh["hemisphere"] = "rh"
     df_rh["StructName"] = df_rh["StructName"].str.replace("rh-", "")
     df_hemis = pd.concat([df_lh, df_rh])
+    assert len(df_hemis) == len(df_lh) + len(df_rh)
     return df_hemis
