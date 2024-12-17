@@ -6,7 +6,15 @@ from scipy import stats
 from . import paths
 
 
-def get_gestational_age_df(want_age="newborn"):
+def get_gestational_age_df():
+    """Read the CSV file containing the gestational age of the babies.
+    
+    Returns
+    -------
+    pd.DataFrame
+        A DataFrame containing the gestational age of the babies for the newborn and
+        sixmonth scans.
+    """
     # this CSV File shared by Yanbin has computed gestational age in days, weeks, and months.
     fname_ages = paths.P_ROOT / "csv" / "babies_demo_updated_with_ages.csv"
     assert fname_ages.exists()
